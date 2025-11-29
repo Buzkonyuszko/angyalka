@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Secret Santa — Generate Assignments</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;background:#0f0f10;color:#eee;padding:40px;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
+  .card{background:#151517;padding:28px;border-radius:12px;width:720px;max-width:95%;box-shadow:0 10px 30px rgba(0,0,0,.6)}
+  h1{margin:0 0 8px;font-size:28px;text-align:center}
+  p.sub{color:#bdbdbd;margin:6px 0 18px;text-align:center}
+  .controls{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+  button{padding:10px 18px;border-radius:8px;border:0;background:#1f6feb;color:#fff;cursor:pointer}
+  button:hover{background:#155fd9}
+  #result{margin-top:18px;font-size:20px;text-align:center;word-break:break-word;text-align:center;}
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>Secret Santa — Generate JSON</h1>
+    <p class="sub">Click the button to generate a fixed Secret Santa map and download it as JSON.</p>
+
+    <div class="controls">
+      <button id="generateBtn">Generate & Download JSON 🎁</button>
+    </div>
+
+    <div id="result" aria-live="polite"></div>
+  </div>
+
+<script>
+const NAMES = [
+  "Beni","Belli","Berci","Edi","Hanna","Malvin",
+  "Nati","Nyest","Stangli","Stefan","Venkel","Zorka",
+  "Zsofi"
+];
+
+// Fisher-Yates shuffle
+function shuffle(array){
+  const arr = [...array];
+  for(let i = arr.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// Generate valid assignments
+function generateAssignments(names){
+  let valid = false;
+  let receivers = [];
+
+  while(!valid){
+    receivers = shuffle(names);
+
+    // Fix self-assignment
+    for(let i=0;i<names.length;i++){
+      if(names[i] === receivers[i]){
+        const swapWith = (i+1)%names.length;
+        [receivers[i], receivers[swapWith]] = [receivers[swapWith], receivers[i]];
+      }
+    }
+
+    // Stefan/Nati rule
+    const forbidPairs = [["Stefan","Nati"],["Nati","Stefan"]];
+    valid = !forbidPairs.some(([giver,badReceiver]) => {
+      const gi = names.indexOf(giver);
+      return receivers[gi] === badReceiver;
+    });
+  }
+
+  const map = {};
+  for(let i=0;i<names.length;i++) map[names[i]] = receivers[i];
+  return map;
+}
+
+// Download JSON
+function downloadJSON(data, filename){
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type: "application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+document.getElementById('generateBtn').addEventListener('click', ()=>{
+  const assignments = generateAssignments(NAMES);
+  document.getElementById('result').textContent = "✅ JSON generated! Downloading...";
+  downloadJSON(assignments, 'assignments.json');
+});
+</script>
+</body>
+</html>
