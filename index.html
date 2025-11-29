@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Secret Santa — Local (Fixed)</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;background:#0f0f10;color:#eee;padding:40px;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
+  .card{background:#151517;padding:28px;border-radius:12px;width:720px;max-width:95%;box-shadow:0 10px 30px rgba(0,0,0,.6)}
+  h1{margin:0 0 8px;font-size:28px;text-align:center}
+  p.sub{color:#bdbdbd;margin:6px 0 18px;text-align:center}
+  .controls{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+  select,input[type=text]{padding:10px;border-radius:8px;border:1px solid #222;background:#0c0c0d;color:#eee;min-width:200px}
+  button{padding:10px 18px;border-radius:8px;border:0;background:#1f6feb;color:#fff;cursor:pointer}
+  button:hover{background:#155fd9}
+  #result{margin-top:18px;font-size:20px;text-align:center}
+  .debug{margin-top:12px;color:#9a9a9a;font-size:13px;text-align:center}
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>Secret Santa (Fixed)</h1>
+    <p class="sub">Use the URL hash to see your draw (e.g., <code>index.html#Beni</code>).</p>
+
+    <div class="controls">
+      <label>
+        Your name:
+        <select id="nameSelect"></select>
+      </label>
+      <button id="drawBtn">See Your Gift 🎄</button>
+    </div>
+
+    <div id="result" aria-live="polite"></div>
+    <div class="debug">
+      <div>Current URL hash: <span id="currentHash">(none)</span></div>
+    </div>
+  </div>
+
+<script>
+  const NAMES = [
+    "Beni","Belli","Berci","Hanna","Malvin","Zsófi","Edi"
+    "Nati","Nyest","Stangli","Stefan","Venkel","Zorka"
+  ];
+
+  const sel = document.getElementById('nameSelect');
+  const btn = document.getElementById('drawBtn');
+  const resultEl = document.getElementById('result');
+  const currentHashEl = document.getElementById('currentHash');
+
+  // Populate select
+  NAMES.forEach(n=>{
+    const o = document.createElement('option');
+    o.value = n; o.textContent = n;
+    sel.appendChild(o);
+  });
+
+  // Read URL hash
+  function readHashName(){
+    const raw = location.hash || '';
+    const name = decodeURIComponent(raw.replace(/^#/, '').trim());
+    return name || null;
+  }
+
+  function refreshHashDisplay(){
+    const h = readHashName();
+    currentHashEl.textContent = h ? h : '(none)';
+  }
+
+  refreshHashDisplay();
+
+  // --- Generate fixed Secret Santa assignments once
+  function generateFixedAssignments(names){
+    let receivers;
+    let valid = false;
+
+    while(!valid){
+      receivers = [...names];
+      for(let i = receivers.length - 1; i > 0; i--){
+        const j = Math.floor(Math.random() * (i + 1));
+        [receivers[i], receivers[j]] = [receivers[j], receivers[i]];
+      }
+
+      // Fix self-assignment
+      for(let i=0;i<names.length;i++){
+        if(names[i] === receivers[i]){
+          const swapWith = (i+1) % names.length;
+          [receivers[i], receivers[swapWith]] = [receivers[swapWith], receivers[i]];
+        }
+      }
+
+      // Stefan/Nati rule
+      let stefanNatiConflict = false;
+      const forbidPairs = [["Stefan","Nati"],["Nati","Stefan"]];
+      for(const [giver,badReceiver] of forbidPairs){
+        const gi = names.indexOf(giver);
+        if(receivers[gi] === badReceiver) stefanNatiConflict = true;
+      }
+
+      valid = !stefanNatiConflict; // regenerate if conflict
+    }
+
+    const map = {};
+    for(let i=0;i<names.length;i++) map[names[i]] = receivers[i];
+    return map;
+  }
+
+  const ASSIGNMENTS = generateFixedAssignments(NAMES);
+
+  function drawFor(player){
+    if(!NAMES.includes(player)) return null;
+    return ASSIGNMENTS[player];
+  }
+
+  // Button click
+  btn.addEventListener('click', ()=>{
+    const me = sel.value;
+    const assigned = drawFor(me);
+    if(!assigned){
+      resultEl.textContent = 'Error: name not recognized.';
+      return;
+    }
+    resultEl.textContent = `${me}, you drew: ${assigned}`;
+  });
+
+  // Preselect hash if present
+  window.addEventListener('load', ()=>{
+    const h = readHashName();
+    if(h && NAMES.includes(h)){
+      sel.value = h;
+      resultEl.textContent = `${h}, your Secret Santa draw is ready. Click the button to see.`;
+    }
+    refreshHashDisplay();
+  });
+
+  // Update hash display on change
+  window.addEventListener('hashchange', ()=> refreshHashDisplay());
+</script>
+</body>
+</html>
